@@ -36,11 +36,5 @@ async def hello_world():
     return jsonify(video_data)
 
 if __name__ == '__main__':
-    import asyncio
-    from hypercorn.asyncio import serve
-    from hypercorn.config import Config
-    
-    config = Config()
     port = int(os.environ.get("PORT", 8080))
-    config.bind = [f"0.0.0.0:{port}"]
-    asyncio.run(serve(app, config))
+    app.run(host='0.0.0.0', port=port, debug=False)
