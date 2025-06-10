@@ -1,9 +1,11 @@
 from quart import Quart, jsonify
 import os
+import json
 
 from static.text_script_service import TextScriptService
 from static.video_generation_service import VideoGenerationService
 
+HOST = "https://revid-ai-57018476417.northamerica-northeast1.run.app"
 REVID_API_KEY = os.getenv("API_KEY", "8eb5870b-7b55-4589-87be-b6fb7752cdbe")
 OPEN_AI_API_KEY = os.getenv("OPEN_AI_API_KEY")
 MUSIC_MS_TOKEN = os.getenv("MUSIC_MS_TOKEN",
@@ -13,7 +15,19 @@ prompt = "Create a TikTok ad script for an iOS app called 'Face AI'. It uses art
 
 app = Quart(__name__)
 
-@app.route('/', methods=['GET'])
+@app.route("/on-video-complete", methods=["POST"])
+async def on_video_complete():
+    from quart import request
+    
+    request_data = await request.get_json()
+
+    print("=== WEBHOOK REQUEST BODY ===")
+    print(json.dumps(request_data, indent=2))
+    print("===========================")
+    
+    return jsonify({"status": "received", "data": request_data})
+
+@app.route('/', methods=['POST', 'GET'])
 async def hello_world():
     script_service = TextScriptService(OPEN_AI_API_KEY)
     script = script_service.generate_video_script(prompt)
@@ -22,7 +36,7 @@ async def hello_world():
         return jsonify({"error": "Failed to generate script", "success": 0})
 
     video_service = VideoGenerationService(REVID_API_KEY, MUSIC_MS_TOKEN)
-    video_data = await video_service.create_video_input(script)
+    video_data = await video_service.create_video_input(script, f"{HOST}/on-video-complete")
 
     if video_data.get("success") == 1 and "pid" in video_data:
         return jsonify({

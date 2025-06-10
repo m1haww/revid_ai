@@ -1,6 +1,5 @@
 import requests
-from typing import Dict, Any, Optional
-import os
+from typing import Dict, Any
 import json
 from static.music_service import MusicService
 
@@ -15,6 +14,7 @@ class VideoGenerationService:
     async def create_video_input(
         self,
         input_text: str,
+        webbook_url: str,
     ) -> Dict[str, Any]:
 
         music_service = MusicService(self.ms_token)
@@ -23,7 +23,7 @@ class VideoGenerationService:
         audio_url = trending_data_list[0]["sound"]["play_url"]
 
         payload = {
-            "webhook": "fill this webhook",
+            "webhook": webbook_url,
             "creationParams": {
                 "targetDuration": 15,
                 "ratio": "9 / 16",
