@@ -6,21 +6,19 @@ from static.music_service import MusicService
 
 
 class VideoGenerationService:
-    def __init__(self, api_key, ms_token):
+    def __init__(self, api_key):
         self.api_url = "https://www.revid.ai/api/public/v2/render"
         self.api_key = api_key
-        self.ms_token = ms_token
         
     async def create_video_input(
         self,
         input_text: str,
+        audio_url: str,
         webbook_url: str,
     ) -> Dict[str, Any]:
-
-        music_service = MusicService(self.ms_token)
-        trending_data_list = await music_service.fetch_trending_music(count=1)
-
-        audio_url = trending_data_list[0]["sound"]["play_url"]
+        
+        if not audio_url:
+            return {"success": 0, "error": "No music URL available"}
 
         payload = {
             "webhook": webbook_url,
