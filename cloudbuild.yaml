@@ -21,7 +21,7 @@ steps:
       - '--platform'
       - 'managed'
       - '--port'
-      - '5001'
+      - '8080'
       - '--allow-unauthenticated'
       - '--set-env-vars'
       - 'API_KEY=$$API_KEY,OPEN_AI_API_KEY=$$OPEN_AI_API_KEY,MUSIC_MS_TOKEN=$$MUSIC_MS_TOKEN'
