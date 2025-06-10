@@ -1,10 +1,12 @@
 from quart import Quart, jsonify
 import os
-import json
-
 from static.music_service import MusicService
+from static.publish_video import publish_video_for_user
 from static.text_script_service import TextScriptService
 from static.video_generation_service import VideoGenerationService
+from static.video_thumbnail_service import VideoThumbnailService
+from static.file_upload_service import FileUploadService
+from static.user_accounts import get_all_users, get_user_by_id
 
 HOST = "https://revid-ai-57018476417.northamerica-northeast1.run.app"
 REVID_API_KEY = os.getenv("API_KEY", "8eb5870b-7b55-4589-87be-b6fb7752cdbe")
@@ -20,42 +22,97 @@ async def on_video_complete():
     from quart import request
     
     request_data = await request.get_json()
-
-    print("=== WEBHOOK REQUEST BODY ===")
-    print(json.dumps(request_data, indent=2))
-    print("===========================")
     
-    return jsonify({"status": "received", "data": request_data})
+    user_id = request.args.get('user_id')
+    user = None
+    if user_id:
+        user = get_user_by_id(user_id)
+    
+    video_url = None
+    
+    if request_data.get("videoUrl"):
+        video_url = request_data["videoUrl"]
+    elif request_data.get("video_url"):
+        video_url = request_data["video_url"]
+    elif request_data.get("result", {}).get("videoUrl"):
+        video_url = request_data["result"]["videoUrl"]
+    elif request_data.get("data", {}).get("videoUrl"):
+        video_url = request_data["data"]["videoUrl"]
 
-@app.route('/create-video', methods=['POST', 'GET'])
-async def generate_video():
+    thumbnail_url = None
+    
+    if video_url:
+        thumbnail_service = VideoThumbnailService()
+        thumbnail_data = await thumbnail_service.extract_thumbnail_from_url(video_url)
+
+        if thumbnail_data and thumbnail_data.get('success'):
+            file_upload_service = FileUploadService()
+            thumbnail_url = await file_upload_service.upload_thumbnail_from_extraction(thumbnail_data)
+
+    response = {
+        "status": "received",
+        "video_url": video_url,
+        "thumbnail_url": thumbnail_url,
+        "user_id": user_id,
+        "user": user.to_dict() if user else None,
+        "full_data": request_data
+    }
+    
+    if video_url:
+        print(f"Video URL found: {video_url}")
+
+        if user and user.has_social_accounts():
+            publish_result = await publish_video_for_user(video_url, thumbnail_url, user, REVID_API_KEY)
+            response["publish_result"] = publish_result
+    
+    return jsonify(response)
+
+@app.route('/create-videos-for-all-users', methods=['POST', 'GET'])
+async def create_videos_for_all_users():
+    users = get_all_users()
+    results = []
+
     script_service = TextScriptService(OPEN_AI_API_KEY)
-    script = script_service.generate_video_script(prompt)
-
-    if not script:
-        return jsonify({"error": "Failed to generate script", "success": 0})
 
     music_service = MusicService(RAPID_API_KEY)
-    music_urls = await music_service.fetch_trending_music(count=3)
 
-    audio_url = music_urls[0] if music_urls else None
+    for user in users:
+        webhook_url = f"{HOST}/on-video-complete?user_id={user.id}"
 
-    if not audio_url:
-        return jsonify({"error": "Failed to generate audio", "success": 0})
+        script = script_service.generate_video_script(prompt)
 
-    video_service = VideoGenerationService(REVID_API_KEY)
-    video_data = await video_service.create_video_input(script, audio_url, f"{HOST}/on-video-complete")
+        if not script:
+            return jsonify({"error": f"Failed to generate script for user: {user.id}", "success": 0})
 
-    if video_data.get("success") == 1 and "pid" in video_data:
-        return jsonify({
-            "success": 1,
-            "message": "Video creation initiated successfully",
-            "pid": video_data["pid"],
-            "webhook": video_data.get("webhook"),
-            "script": script
-        })
+        music_urls = await music_service.fetch_trending_music(count=3)
+        audio_url = music_urls[0] if music_urls else None
 
-    return jsonify(video_data)
+        if not audio_url:
+            return jsonify({"error": "Failed to generate audio", "success": 0})
+
+        video_service = VideoGenerationService(REVID_API_KEY)
+        video_data = await video_service.create_video_input(script, audio_url, webhook_url)
+        
+        if video_data.get("success") == 1 and "pid" in video_data:
+            results.append({
+                "user_id": user.id,
+                "user": user.to_dict(),
+                "success": 1,
+                "pid": video_data["pid"],
+                "webhook": video_data.get("webhook")
+            })
+        else:
+            results.append({
+                "user_id": user.id,
+                "user": user.to_dict(),
+                "success": 0,
+                "error": video_data
+            })
+    
+    return jsonify({
+        "total_users": len(users),
+        "results": results
+    })
 
 if __name__ == '__main__':
     import asyncio

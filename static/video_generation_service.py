@@ -1,9 +1,6 @@
 import requests
 from typing import Dict, Any
 import json
-from static.music_service import MusicService
-
-
 
 class VideoGenerationService:
     def __init__(self, api_key):
