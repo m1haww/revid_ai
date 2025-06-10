@@ -6,14 +6,14 @@ from static.video_generation_service import VideoGenerationService
 
 REVID_API_KEY = os.getenv("API_KEY", "8eb5870b-7b55-4589-87be-b6fb7752cdbe")
 OPEN_AI_API_KEY = os.getenv("OPEN_AI_API_KEY")
-MUSIC_MS_TOKEN = os.getenv("MUSIC_MS_TOKEN", "0Noq8K453yDmxVGaNjo1Ivnwo2HeGkGOmWc_avIPpzn09KB3dPSrOVyOEkyGExHAxY3D2EGOP6AzYjV5T33XC_yWR1UweYo1ZPcWMus5qnBwD-xDyB1eNkbZPfp4WR2rU8uZR4i_V4-yhZ63zowybbhe")
+MUSIC_MS_TOKEN = os.getenv("MUSIC_MS_TOKEN",
+                           "0Noq8K453yDmxVGaNjo1Ivnwo2HeGkGOmWc_avIPpzn09KB3dPSrOVyOEkyGExHAxY3D2EGOP6AzYjV5T33XC_yWR1UweYo1ZPcWMus5qnBwD-xDyB1eNkbZPfp4WR2rU8uZR4i_V4-yhZ63zowybbhe")
 
 prompt = "Create a TikTok ad script for an iOS app called 'Face AI'. It uses artificial intelligence to enhance selfies, generate professional headshots, and apply unique visual effects. Target audience: users who want better profile pictures, resume headshots, or just enjoy playing with AI photo effects."
 
 app = Quart(__name__)
 
-
-@app.route('/')
+@app.route('/', methods=['GET'])
 async def hello_world():
     script_service = TextScriptService(OPEN_AI_API_KEY)
     script = script_service.generate_video_script(prompt)
@@ -36,5 +36,10 @@ async def hello_world():
     return jsonify(video_data)
 
 if __name__ == '__main__':
-    port = int(os.environ.get("PORT", 8080))
-    app.run(host='0.0.0.0', port=port, debug=False)
+    import asyncio
+    from hypercorn.asyncio import serve
+    from hypercorn.config import Config
+
+    config = Config()
+    config.bind = ["0.0.0.0:5001"]
+    asyncio.run(serve(app, config))
