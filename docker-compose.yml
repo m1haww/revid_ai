@@ -1,0 +1,19 @@
+version: '3.8'
+
+services:
+  revid-api:
+    build: .
+    container_name: revid-api-service
+    ports:
+      - "5001:5001"
+    environment:
+      - API_KEY=${API_KEY:-8eb5870b-7b55-4589-87be-b6fb7752cdbe}
+      - OPEN_AI_API_KEY=${OPEN_AI_API_KEY}
+      - MUSIC_MS_TOKEN=${MUSIC_MS_TOKEN:-0Noq8K453yDmxVGaNjo1Ivnwo2HeGkGOmWc_avIPpzn09KB3dPSrOVyOEkyGExHAxY3D2EGOP6AzYjV5T33XC_yWR1UweYo1ZPcWMus5qnBwD-xDyB1eNkbZPfp4WR2rU8uZR4i_V4-yhZ63zowybbhe}
+    restart: unless-stopped
+    networks:
+      - revid-network
+
+networks:
+  revid-network:
+    driver: bridge

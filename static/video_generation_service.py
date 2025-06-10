@@ -1,0 +1,123 @@
+import requests
+from typing import Dict, Any, Optional
+import os
+import json
+from static.music_service import MusicService
+
+
+
+class VideoGenerationService:
+    def __init__(self, api_key, ms_token):
+        self.api_url = "https://www.revid.ai/api/public/v2/render"
+        self.api_key = api_key
+        self.ms_token = ms_token
+        
+    async def create_video_input(
+        self,
+        input_text: str,
+    ) -> Dict[str, Any]:
+
+        music_service = MusicService(self.ms_token)
+        trending_data_list = await music_service.fetch_trending_music(count=1)
+
+        audio_url = trending_data_list[0]["sound"]["play_url"]
+
+        payload = {
+            "webhook": "fill this webhook",
+            "creationParams": {
+                "targetDuration": 15,
+                "ratio": "9 / 16",
+                "mediaType": "movingImage",
+                "inputText": input_text,
+                "flowType": "text-to-video",
+                "slug": "ai-ad-generator",
+                "slugNew": "",
+                "isCopiedFrom": False,
+                "hasToGenerateVoice": True,
+                "hasToTranscript": False,
+                "hasToSearchMedia": True,
+                "hasAvatar": False,
+                "hasWebsiteRecorder": False,
+                "hasTextSmallAtBottom": False,
+                "selectedAudio": "Observer",
+                "selectedVoice": "yl2ZDV1MzN4HbQJbMihG",
+                "selectedAvatarType": "",
+                "websiteToRecord": "",
+                "hasToGenerateCover": False,
+                "nbGenerations": 1,
+                "disableCaptions": False,
+                "mediaMultiplier": "medium",
+                "characters": [],
+                "captionPresetName": "Wrap 1",
+                "captionPositionName": "bottom",
+                "sourceType": "contentScraping",
+                "selectedStoryStyle": {
+                    "value": "custom",
+                    "label": "General"
+                },
+                "durationSeconds": 40,
+                "generationPreset": "GHIBLI",
+                "hasToGenerateMusic": False,
+                "isOptimizedForChinese": False,
+                "generationUserPrompt": "",
+                "enableNsfwFilter": False,
+                "addStickers": False,
+                "typeMovingImageAnim": "dynamic",
+                "hasToGenerateSoundEffects": False,
+                "forceModelType": "gpt-image-1",
+                "selectedCharacters": [],
+                "lang": "",
+                "voiceSpeed": 1,
+                "disableAudio": False,
+                "disableVoice": False,
+                "useOnlyProvidedMedia": True,
+                "imageGenerationModel": "ultra",
+                "videoGenerationModel": "base",
+                "hasEnhancedGeneration": True,
+                "hasEnhancedGenerationPro": True,
+                "inputMedias": [
+                    {
+                        "url": "https://cdn.revid.ai/uploads/1749032740401-image.png",
+                        "title": "",
+                        "type": "image"
+                    },
+                    {
+                        "url": "https://cdn.revid.ai/uploads/1749032732750-image.png",
+                        "title": "",
+                        "type": "image"
+                    },
+                    {
+                        "url": "https://cdn.revid.ai/uploads/1749032761045-image.png",
+                        "title": "",
+                        "type": "image"
+                    }
+                ],
+                "hasToGenerateVideos": True,
+                "audioUrl": audio_url,
+                "watermark": None,
+                "estimatedCreditsToConsume": 10
+            }
+        }
+
+        try:
+            headers = {
+                "Content-Type": "application/json",
+                "key": self.api_key
+            }
+
+            response = requests.request(
+                "POST",
+                self.api_url,
+                headers=headers,
+                data=json.dumps(payload)
+            )
+
+            response_data = response.json()
+            print(f"Revid AI response: {response_data}")
+            
+            return response_data
+        except requests.exceptions.RequestException as e:
+            return {
+                "error": str(e),
+                "status_code": getattr(e.response, 'status_code', None) if hasattr(e, 'response') else None
+            }
