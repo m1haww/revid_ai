@@ -8,19 +8,19 @@ async def publish_video_for_user(video_url: str, thumbnail_url: str, user, api_k
         "videoUrl": video_url
     }
 
-    # if user.tiktok_username:
-    #     publish_data["tiktok"] = {
-    #         "username": user.tiktok_username,
-    #         "title": "Check out Face AI - Transform your selfies with AI!",
-    #         "privacy_level": "PUBLIC_TO_EVERYONE",
-    #         "disable_duet": False,
-    #         "disable_stitch": False,
-    #         "disable_comment": False,
-    #         "brand_organic_toggle": False,
-    #         "brand_content_toggle": False,
-    #         "discloseContent": False,
-    #         "tiktokCoverTimestampMs": 1000
-    #     }
+    if user.tiktok_username:
+        publish_data["tiktok"] = {
+            "username": user.tiktok_username,
+            "title": "Check out Face AI - Transform your selfies with AI!",
+            "privacy_level": "PUBLIC_TO_EVERYONE",
+            "disable_duet": False,
+            "disable_stitch": False,
+            "disable_comment": False,
+            "brand_organic_toggle": False,
+            "brand_content_toggle": False,
+            "discloseContent": False,
+            "tiktokCoverTimestampMs": 1000
+        }
 
     if user.youtube_username:
         publish_data["youtube"] = {
@@ -30,12 +30,12 @@ async def publish_video_for_user(video_url: str, thumbnail_url: str, user, api_k
             "thumbnailUrl": thumbnail_url or "https://cdn.revid.ai/thumbnails/default_thumbnail.jpeg"
         }
 
-    # if user.instagram_username:
-    #     publish_data["instagram"] = {
-    #         "username": user.instagram_username,
-    #         "title": "Transform your photos with Face AI ✨",
-    #         "thumbnailUrl": thumbnail_url or "https://cdn.revid.ai/thumbnails/default_thumbnail.jpeg"
-    #     }
+    if user.instagram_username:
+        publish_data["instagram"] = {
+            "username": user.instagram_username,
+            "title": "Transform your photos with Face AI ✨",
+            "thumbnailUrl": thumbnail_url or "https://cdn.revid.ai/thumbnails/default_thumbnail.jpeg"
+        }
 
     try:
         headers = {
