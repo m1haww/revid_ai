@@ -3,9 +3,9 @@ version: '3.8'
 services:
   revid-api:
     build: .
-    container_name: revid-api-service
+    container_name: revid-ai
     ports:
-      - "5001:5001"
+      - "8080:8080"
     environment:
       - API_KEY=${API_KEY:-8eb5870b-7b55-4589-87be-b6fb7752cdbe}
       - OPEN_AI_API_KEY=${OPEN_AI_API_KEY}
