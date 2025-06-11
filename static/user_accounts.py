@@ -11,7 +11,7 @@ user_accounts = [
         id="user_002",
         tiktok_username="Michael Whitaker",
         youtube_username="Michael Whitaker",
-        instagram_username=None
+        instagram_username="michaelwhitaker872"
     ),
     User(
         id="user_003",
