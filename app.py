@@ -1,5 +1,6 @@
 from quart import Quart, jsonify
 import os
+from urllib.parse import quote
 from static.music_service import MusicService
 from static.publish_video import publish_video_for_user
 from static.text_script_service import TextScriptService
@@ -7,6 +8,7 @@ from static.video_generation_service import VideoGenerationService
 from static.video_thumbnail_service import VideoThumbnailService
 from static.file_upload_service import FileUploadService
 from static.user_accounts import get_all_users, get_user_by_id
+from static.video_metadata_service import VideoMetadataService
 
 HOST = "https://revid-ai-57018476417.northamerica-northeast1.run.app"
 REVID_API_KEY = os.getenv("API_KEY", "8eb5870b-7b55-4589-87be-b6fb7752cdbe")
@@ -24,6 +26,9 @@ async def on_video_complete():
     request_data = await request.get_json()
     
     user_id = request.args.get('user_id')
+    video_title = request.args.get('title', 'Untitled Video')
+    video_description = request.args.get('description', '')
+    
     user = None
     if user_id:
         user = get_user_by_id(user_id)
@@ -62,7 +67,7 @@ async def on_video_complete():
         print(f"Video URL found: {video_url}")
 
         if user and user.has_social_accounts():
-            publish_result = await publish_video_for_user(video_url, thumbnail_url, user, REVID_API_KEY)
+            publish_result = await publish_video_for_user(video_url, thumbnail_url, user, REVID_API_KEY, video_title, video_description)
             response["publish_result"] = publish_result
     
     return jsonify(response)
@@ -75,14 +80,22 @@ async def create_videos_for_all_users():
     script_service = TextScriptService(OPEN_AI_API_KEY)
 
     music_service = MusicService(RAPID_API_KEY)
+    metadata_service = VideoMetadataService()
 
     for user in users:
-        webhook_url = f"{HOST}/on-video-complete?user_id={user.id}"
-
         script = script_service.generate_video_script(prompt)
 
         if not script:
             return jsonify({"error": f"Failed to generate script for user: {user.id}", "success": 0})
+        
+        metadata = metadata_service.get_video_metadata(script)
+        video_title = metadata["title"]
+        video_description = metadata["description"]
+        
+        encoded_title = quote(video_title)
+        encoded_description = quote(video_description)
+        
+        webhook_url = f"{HOST}/on-video-complete?user_id={user.id}&title={encoded_title}&description={encoded_description}"
 
         music_urls = await music_service.fetch_trending_music(count=3)
         audio_url = music_urls[0] if music_urls else None
@@ -99,7 +112,9 @@ async def create_videos_for_all_users():
                 "user": user.to_dict(),
                 "success": 1,
                 "pid": video_data["pid"],
-                "webhook": video_data.get("webhook")
+                "webhook": video_data.get("webhook"),
+                "title": video_title,
+                "description": video_description
             })
         else:
             results.append({

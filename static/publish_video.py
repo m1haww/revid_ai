@@ -1,6 +1,6 @@
 import aiohttp
 
-async def publish_video_for_user(video_url: str, thumbnail_url: str, user, api_key: str):
+async def publish_video_for_user(video_url: str, thumbnail_url: str, user, api_key: str, title: str = None, description: str = None):
     """Publish video to user's social media accounts"""
     publish_url = "https://www.revid.ai/api/public/v2/publish-now"
 
@@ -11,7 +11,7 @@ async def publish_video_for_user(video_url: str, thumbnail_url: str, user, api_k
     if user.tiktok_username:
         publish_data["tiktok"] = {
             "username": user.tiktok_username,
-            "title": "Check out Face AI - Transform your selfies with AI!",
+            "title": title or "Check out Face AI - Transform your selfies with AI!",
             "privacy_level": "PUBLIC_TO_EVERYONE",
             "disable_duet": False,
             "disable_stitch": False,
@@ -25,8 +25,8 @@ async def publish_video_for_user(video_url: str, thumbnail_url: str, user, api_k
     if user.youtube_username:
         publish_data["youtube"] = {
             "username": user.youtube_username,
-            "title": "Face AI - AI-Powered Photo Enhancement",
-            "description": "Transform your selfies with Face AI! Create professional headshots and apply unique visual effects using artificial intelligence. Perfect for profile pictures and creative photo editing.",
+            "title": title or "Face AI - AI-Powered Photo Enhancement",
+            "description": description or "Transform your selfies with Face AI! Create professional headshots and apply unique visual effects using artificial intelligence. Perfect for profile pictures and creative photo editing.",
             "thumbnailUrl": thumbnail_url or "https://cdn.revid.ai/thumbnails/default_thumbnail.jpeg"
         }
 
