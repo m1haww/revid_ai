@@ -1,5 +1,6 @@
 from quart import Quart, jsonify
 import os
+import logging
 from urllib.parse import quote
 from static.music_service import MusicService
 from static.publish_video import publish_video_for_user, video_models
@@ -19,6 +20,13 @@ RAPID_API_KEY = os.getenv("RAPID_API_KEY", "6f0aa73520mshfe4eacac82fb342p18af61j
 prompt = "Create a TikTok ad script for an iOS app called 'Face AI'. It uses artificial intelligence to enhance selfies, generate professional headshots, and apply unique visual effects. Target audience: users who want better profile pictures, resume headshots, or just enjoy playing with AI photo effects."
 
 app = Quart(__name__)
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
 
 @app.route("/on-video-complete", methods=["POST"])
 async def on_video_complete():
@@ -138,18 +146,27 @@ async def publish_next_video():
     """
     from quart import request
     
+    logger.info("=== Starting publish_next_video endpoint ===")
+    
     request_data = await request.get_json() if request.is_json else {}
-    specific_index = request_data.get('index')  # Optional: force specific index
-    reset_index = request_data.get('reset', False)  # Optional: reset to start
+    specific_index = request_data.get('index')
+    reset_index = request_data.get('reset', False)
+    
+    logger.info(f"Request data - specific_index: {specific_index}, reset_index: {reset_index}")
 
     if reset_index:
         VideoPublishState.reset_index()
+        logger.info("Video publish index has been reset")
     
     # Get all videos and users
     total_videos = len(video_models)
     users = get_all_users()
     
+    logger.info(f"Total videos available: {total_videos}")
+    logger.info(f"Total users to process: {len(users)}")
+    
     if total_videos == 0:
+        logger.error("No videos available to publish")
         return jsonify({
             "success": False,
             "error": "No videos available to publish"
@@ -160,38 +177,62 @@ async def publish_next_video():
         # Use specific index if provided
         video_index = specific_index % total_videos
         VideoPublishState.set_current_index(video_index)
+        logger.info(f"Using specific video index: {video_index}")
     else:
         # Use current index and increment for next time
         video_index = VideoPublishState.increment_index(total_videos)
+        logger.info(f"Using auto-incremented video index: {video_index}")
     
     # Get the video to publish
     video_to_publish = video_models[video_index]
+    logger.info(f"Publishing video: '{video_to_publish.title}' (index: {video_index})")
     
     # Publish to all users
     results = []
     successful_publishes = 0
     
     for user in users:
+        logger.info(f"Processing user: {user.id}")
+        
         if user.has_social_accounts():
-            publish_result = await publish_video_for_user(
-                video_url=video_to_publish.video_url,
-                thumbnail_url=video_to_publish.thumbnail_url,
-                user=user,
-                api_key=REVID_API_KEY,
-                title=video_to_publish.title,
-                description=video_to_publish.description
-            )
+            logger.info(f"User {user.id} has social accounts linked. Attempting to publish...")
             
-            results.append({
-                "user_id": user.id,
-                "user": user.to_dict(),
-                "publish_result": publish_result,
-                "success": publish_result.get("success", False)
-            })
-            
-            if publish_result.get("success", False):
-                successful_publishes += 1
+            try:
+                publish_result = await publish_video_for_user(
+                    video_url=video_to_publish.video_url,
+                    thumbnail_url=video_to_publish.thumbnail_url,
+                    user=user,
+                    api_key=REVID_API_KEY,
+                    title=video_to_publish.title,
+                    description=video_to_publish.description
+                )
+                
+                success = publish_result.get("success", False)
+                
+                if success:
+                    logger.info(f"✅ Successfully published video for user {user.id}")
+                    successful_publishes += 1
+                else:
+                    error_msg = publish_result.get("error", "Unknown error")
+                    logger.warning(f"❌ Failed to publish video for user {user.id}: {error_msg}")
+                
+                results.append({
+                    "user_id": user.id,
+                    "user": user.to_dict(),
+                    "publish_result": publish_result,
+                    "success": success
+                })
+                
+            except Exception as e:
+                logger.error(f"❌ Exception while publishing for user {user.id}: {str(e)}")
+                results.append({
+                    "user_id": user.id,
+                    "user": user.to_dict(),
+                    "error": f"Exception: {str(e)}",
+                    "success": False
+                })
         else:
+            logger.warning(f"⚠️ User {user.id} has no social accounts linked")
             results.append({
                 "user_id": user.id,
                 "user": user.to_dict(),
@@ -199,7 +240,14 @@ async def publish_next_video():
                 "success": False
             })
     
-    # Prepare response
+    # Log summary
+    logger.info("=== Publishing Summary ===")
+    logger.info(f"Total users processed: {len(users)}")
+    logger.info(f"Successful publishes: {successful_publishes}")
+    logger.info(f"Failed publishes: {len(users) - successful_publishes}")
+    logger.info(f"Success rate: {(successful_publishes / len(users) * 100) if len(users) > 0 else 0:.1f}%")
+    logger.info("=== End of publish_next_video endpoint ===")
+    
     response = {
         "success": successful_publishes > 0,
         "video_index": video_index,
