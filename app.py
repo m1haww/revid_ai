@@ -2,13 +2,14 @@ from quart import Quart, jsonify
 import os
 from urllib.parse import quote
 from static.music_service import MusicService
-from static.publish_video import publish_video_for_user
+from static.publish_video import publish_video_for_user, video_models
 from static.text_script_service import TextScriptService
 from static.video_generation_service import VideoGenerationService
 from static.video_thumbnail_service import VideoThumbnailService
 from static.file_upload_service import FileUploadService
 from static.user_accounts import get_all_users, get_user_by_id
 from static.video_metadata_service import VideoMetadataService
+from static.video_state import VideoPublishState
 
 HOST = "https://revid-ai-57018476417.northamerica-northeast1.run.app"
 REVID_API_KEY = os.getenv("API_KEY", "8eb5870b-7b55-4589-87be-b6fb7752cdbe")
@@ -127,6 +128,123 @@ async def create_videos_for_all_users():
     return jsonify({
         "total_users": len(users),
         "results": results
+    })
+
+@app.route('/publish-next-video', methods=['POST'])
+async def publish_next_video():
+    """
+    Publish the next video in the queue to all user accounts.
+    Automatically cycles through videos using the current index.
+    """
+    from quart import request
+    
+    request_data = await request.get_json() if request.is_json else {}
+    specific_index = request_data.get('index')  # Optional: force specific index
+    reset_index = request_data.get('reset', False)  # Optional: reset to start
+
+    if reset_index:
+        VideoPublishState.reset_index()
+    
+    # Get all videos and users
+    total_videos = len(video_models)
+    users = get_all_users()
+    
+    if total_videos == 0:
+        return jsonify({
+            "success": False,
+            "error": "No videos available to publish"
+        }), 400
+    
+    # Determine which video to publish
+    if specific_index is not None:
+        # Use specific index if provided
+        video_index = specific_index % total_videos
+        VideoPublishState.set_current_index(video_index)
+    else:
+        # Use current index and increment for next time
+        video_index = VideoPublishState.increment_index(total_videos)
+    
+    # Get the video to publish
+    video_to_publish = video_models[video_index]
+    
+    # Publish to all users
+    results = []
+    successful_publishes = 0
+    
+    for user in users:
+        if user.has_social_accounts():
+            publish_result = await publish_video_for_user(
+                video_url=video_to_publish.video_url,
+                thumbnail_url=video_to_publish.thumbnail_url,
+                user=user,
+                api_key=REVID_API_KEY,
+                title=video_to_publish.title,
+                description=video_to_publish.description
+            )
+            
+            results.append({
+                "user_id": user.id,
+                "user": user.to_dict(),
+                "publish_result": publish_result,
+                "success": publish_result.get("success", False)
+            })
+            
+            if publish_result.get("success", False):
+                successful_publishes += 1
+        else:
+            results.append({
+                "user_id": user.id,
+                "user": user.to_dict(),
+                "error": "No social accounts linked",
+                "success": False
+            })
+    
+    # Prepare response
+    response = {
+        "success": successful_publishes > 0,
+        "video_index": video_index,
+        "video_published": {
+            "title": video_to_publish.title,
+            "url": video_to_publish.video_url,
+            "thumbnail": video_to_publish.thumbnail_url
+        },
+        "total_videos": total_videos,
+        "next_index": (video_index + 1) % total_videos,
+        "total_users": len(users),
+        "successful_publishes": successful_publishes,
+        "results": results
+    }
+    
+    return jsonify(response)
+
+@app.route('/get-video-publish-status', methods=['GET'])
+async def get_video_publish_status():
+    """Get the current status of video publishing"""
+    current_index = VideoPublishState.get_current_index()
+    total_videos = len(video_models)
+    
+    current_video = None
+    if total_videos > 0 and current_index < total_videos:
+        current_video = {
+            "index": current_index,
+            "title": video_models[current_index].title,
+            "url": video_models[current_index].video_url,
+            "thumbnail": video_models[current_index].thumbnail_url
+        }
+    
+    return jsonify({
+        "current_index": current_index,
+        "total_videos": total_videos,
+        "current_video": current_video,
+        "videos": [
+            {
+                "index": i,
+                "title": video.title,
+                "url": video.video_url,
+                "thumbnail": video.thumbnail_url
+            }
+            for i, video in enumerate(video_models)
+        ]
     })
 
 if __name__ == '__main__':

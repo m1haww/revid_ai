@@ -2,6 +2,12 @@ from models.user_model import User
 
 user_accounts = [
     User(
+        id="user_004",
+        tiktok_username="Justin Oliver",
+        youtube_username="Justin Oliver",
+        instagram_username=None
+    ),
+    User(
         id="user_001",
         tiktok_username="strawberyyg",
         youtube_username="George Straw",
@@ -9,7 +15,7 @@ user_accounts = [
     ),
     User(
         id="user_002",
-        tiktok_username="Michael Whitaker",
+        tiktok_username="Face AI",
         youtube_username="Michael Whitaker",
         instagram_username="michaelwhitaker872"
     ),
@@ -20,15 +26,27 @@ user_accounts = [
         instagram_username=None
     ),
     User(
-        id="user_004",
-        tiktok_username="Justin Oliver",
-        youtube_username="Justin Oliver",
-        instagram_username=None
-    ),
-    User(
         id="user_005",
         tiktok_username="face.ai.floyd",
         youtube_username="Floyd Baker",
+        instagram_username=None
+    ),
+    User(
+        id="user_006",
+        tiktok_username="toon.ai.dominick",
+        youtube_username="Dominick Ocahara",
+        instagram_username=None
+    ),
+    User(
+        id="user_007",
+        tiktok_username="toon.ai.suarez",
+        youtube_username="Bessie Vasquez",
+        instagram_username=None
+    ),
+    User(
+        id="user_008",
+        tiktok_username="toon.ai.carie",
+        youtube_username="Carie Normand",
         instagram_username=None
     )
 ]
